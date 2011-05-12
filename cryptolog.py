@@ -39,28 +39,41 @@ def hash_ip(ip, salt_filename):
 
 if __name__ == "__main__":
   parser = ArgumentParser(description='A program to encrypt the IP addresses in web server logs, to be used within an Apache CustomLog line. It assumes that the IP address is the first space-separated field in the log line. Input comes in the form of log lines from stdin.')
-  parser.add_argument('-s', '--salt', 
+  parser.add_argument('-s', 
       dest='salt', 
       default='/tmp/cryptolog_salt', 
       help='filename to store the salt in (default: /tmp/cryptolog_salt)')
-  parser.add_argument('-w', '--write', 
+  parser.add_argument('-w',
       dest='write', 
       help='filename to write logs to')
-  parser.add_argument('-c', '--command', 
+  parser.add_argument('-c',
       dest='command', 
       help='pipe logs to this external program')
   args = parser.parse_args()
 
   try:
-    for ln in stdin:
-      ip, rest = ln.split(" ", 1)
-      crypted_log = " ".join( (hash_ip(ip, args.salt), rest) )
+    #log_file = None
+    #if(args.write != None):
+    #  log_file = file(args.write, 'ab')
+
+    line = stdin.readline()
+    while(line):
+      ip, rest = line.split(" ", 1)
+      crypted_log = " ".join(hash_ip(ip, args.salt), rest)
 
       if(args.write != None):
-        open(args.write, 'a').write(crypted_log)
+        f = open(args.write, 'a')
+        f.write(crypted_line)
+        f.close()
+        #log_file.write(crypted_log)
 
       #if(args.command != None):
 
+      line = stdin.readline()
+
+    #if(log_file != None):
+    #  log_file.flush()
+    #  log_file.close()
   except Exception, e:
     stderr.write(__doc__)
     syslog(Critical, str(e))
