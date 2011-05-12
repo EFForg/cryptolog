@@ -3,10 +3,11 @@
 from sys import stdin, stdout, stderr, argv as arguments
 from os import urandom, stat
 from time import time
-from syslog import syslog, LOG_CRIT as Critical
+from syslog import syslog, LOG_CRIT
 from base64 import b64encode as encode
 from hmac import HMAC as hash
 from argparse import ArgumentParser
+from subprocess import Popen, PIPE
 
 salt_size = 16
 one_day = 60 * 60 * 24
@@ -20,7 +21,7 @@ def salt(salt_filename):
     try:
       return new_salt(salt_filename)
     except Exception, ee:
-      syslog(Critical, str(ee))
+      syslog(LOG_CRIT, str(ee))
       return urandom(salt_size)
 
 def new_salt(salt_filename):
@@ -32,7 +33,7 @@ def new_salt(salt_filename):
     f.close()
     return r
   except Exception, e:
-    syslog(Critical, str(e))
+    syslog(LOG_CRIT, str(e))
 
 def hash_ip(ip, salt_filename):
   return encode(hash(salt(salt_filename), ip).digest())[:6]
@@ -52,29 +53,36 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   try:
-    #log_file = None
-    #if(args.write != None):
-    #  log_file = file(args.write, 'ab')
+    log_file = None
+    if(args.write != None):
+      log_file = file(args.write, 'ab')
 
-    line = stdin.readline()
-    while(line):
-      ip, rest = line.split(" ", 1)
-      crypted_log = " ".join(hash_ip(ip, args.salt), rest)
+    p = None
+    if(args.command != None):
+      p = Popen(args.command, stdin=PIPE, shell=True)
 
-      if(args.write != None):
-        f = open(args.write, 'a')
-        f.write(crypted_line)
-        f.close()
-        #log_file.write(crypted_log)
+    log = stdin.readline()
+    while(log):
+      ip, rest = log.split(" ", 1)
+      crypted_log = " ".join((hash_ip(ip, args.salt), rest))
 
-      #if(args.command != None):
+      if(log_file != None):
+        log_file.write(crypted_log)
+        log_file.flush()
 
-      line = stdin.readline()
+      if(p != None):
+        p.stdin.write(crypted_log)
+        p.stdin.flush()
 
-    #if(log_file != None):
-    #  log_file.flush()
-    #  log_file.close()
+      log = stdin.readline()
+
+    if(log_file != None):
+      log_file.flush()
+      log_file.close()
+
+    if(p != None):
+      p.stdin.flush()
+      p.stdin.close()
   except Exception, e:
-    stderr.write(__doc__)
-    syslog(Critical, str(e))
+    syslog(LOG_CRIT, str(e))
 
