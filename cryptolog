@@ -77,12 +77,11 @@ if __name__ == "__main__":
       log = stdin.readline()
 
     if(log_file != None):
-      log_file.flush()
       log_file.close()
 
     if(p != None):
-      p.stdin.flush()
       p.stdin.close()
+      p.wait()
   except Exception, e:
     syslog(LOG_CRIT, str(e))
 
