@@ -17,11 +17,11 @@ day's worth of original IP addresses.
 
 Cryptolog makes logs that look like this:
 
-127.0.0.1 - - [12/May/2011:15:10:20 -0700] "GET / HTTP/1.1" 200 9634 "-" "curl/7.21.3 (x86_64-pc-linux-gnu) libcurl/7.21.3 OpenSSL/0.9.8o zlib/1.2.3.4 libidn/1.18"
+67.169.69.72 - - [12/May/2011:17:58:07 -0700] "GET / HTTP/1.1" 200 430
 
 Looks like this instead:
 
-UkezVh - - [12/May/2011:15:10:20 -0700] "GET / HTTP/1.1" 200 9634 "-" "curl/7.21.3 (x86_64-pc-linux-gnu) libcurl/7.21.3 OpenSSL/0.9.8o zlib/1.2.3.4 libidn/1.18"
+UkezVh - - [12/May/2011:17:58:07 -0700] "GET / HTTP/1.1" 200 430
 
 The string that replaces the IP address will remain the same for the same day, 
 so you can tell the difference between unique visitors and pageviews.
@@ -29,6 +29,9 @@ so you can tell the difference between unique visitors and pageviews.
 Here are some example CustomLog lines for your Apache config files:
 
 CustomLog "| /usr/bin/cryptolog -w /root/cryptolog-access.log" combined
-CustomLog "| /usr/bin/cryptolog -c /usr/bin/cronolog\ /root/cryptolog-access-%Y-%m-%d.log" combined
+CustomLog "| /usr/bin/cryptolog -c /usr/bin/cronolog\\\ /root/cryptolog-access-%Y-%m-%d.log" combined
 CustomLog "| /usr/bin/cryptolog -s /tmp/salt_file -w /root/cryptolog-access.log" combined
+
+Notice that if you're using the -c option, you need to escape spaces in the 
+command you're running with three backslashes.
 
