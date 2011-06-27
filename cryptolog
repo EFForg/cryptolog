@@ -2,7 +2,7 @@
 
 from sys import stdin, stdout, stderr, argv as arguments
 from os import urandom, stat
-from time import time
+from time import localtime, time
 from syslog import syslog, LOG_CRIT
 from base64 import b64encode as encode
 from hmac import HMAC as hash
@@ -14,7 +14,11 @@ one_day = 60 * 60 * 24
 
 def salt(salt_filename):
   try:
-    if time() > stat(salt_filename).st_mtime + one_day:
+    cur_time = localtime()
+    cur_day = (cur_time.tm_year, cur_time.tm_yday)
+    salt_time = localtime(stat(salt_filename).st_mtime)
+    salt_day = (salt_time.tm_year, salt_time.tm_yday)
+    if cur_day != salt_day:
       return new_salt()
     return file(salt_filename, "rb").read(16)
   except Exception, e:
