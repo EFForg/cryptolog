@@ -8,6 +8,7 @@ from base64 import b64encode as encode
 from hmac import HMAC as hash
 from argparse import ArgumentParser
 from subprocess import Popen, PIPE
+import re
 
 salt_size = 16
 one_day = 60 * 60 * 24
@@ -42,6 +43,58 @@ def new_salt(salt_filename):
 def hash_ip(ip, salt_filename):
   return encode(hash(salt(salt_filename), ip).digest())[:6]
 
+
+class LogParseError(Exception):
+  pass
+
+
+class CryptoFilter(object):
+  """Class to control cryptographic logging."""
+  
+  def __init__(self, regex, field_list, salt_filename):
+    """
+    Args:
+      regex: re.compile(r'(?P<A>)(?P<B>)) object, with
+        named groups
+      field_list: what to encrypt that matches named groups
+        above, e.g. ["IP", "UA"]
+      salt_filename: where the salt is stored that we're using
+    """
+    self.regex = regex
+    self.field_list = field_list
+    self.salt_filename = salt_filename
+
+  def Cryptify(self, log_entry):
+    """From self.regex, picks out relevant fields from 
+    self.field_list and replaces them with crypt hashes.
+
+    Args:
+      log_entry
+    Returns:
+      crypto_log_entry
+    """
+    results = self.regex.search(log_entry)
+    if not results:
+      raise LogParseError("Log format does not match regex.")
+    split_log = list(results.groups())
+    # TODO(dtauerbach): this is inefficient but regex
+    # doesn't seem quite powerful enough to avoid it.
+    # measure then optimize if necessary
+    for field in self.field_list:
+      res = results.group(field)
+      if not res:
+          # TODO(dtauerbach): Figure out the convention here
+          # probably a warning is all that we want since fields
+          # could legitimately be empty
+        continue
+      split_log[split_log.index(res)] = self.EncryptField(res)
+    return '%s\n' % (''.join(split_log))
+
+  def EncryptField(self, field):
+    """Encrypt relevant field (e.g. IP) using salted hash."""
+    return hash_ip(field, self.salt_filename)
+
+
 if __name__ == "__main__":
   parser = ArgumentParser(description='A program to encrypt the IP addresses in web server logs, to be used within an Apache CustomLog line. It assumes that the IP address is the first space-separated field in the log line. Input comes in the form of log lines from stdin.')
   parser.add_argument('-s', 
@@ -56,36 +109,35 @@ if __name__ == "__main__":
       help='pipe logs to this external program')
   args = parser.parse_args()
 
-  try:
-    log_file = None
-    if(args.write != None):
-      log_file = file(args.write, 'ab')
+  log_file = None
+  if(args.write != None):
+    log_file = file(args.write, 'ab')
 
-    p = None
-    if(args.command != None):
-      p = Popen(args.command, stdin=PIPE, shell=True)
+  p = None
+  if(args.command != None):
+    p = Popen(args.command, stdin=PIPE, shell=True)
 
-    log = stdin.readline()
-    while(log):
-      ip, rest = log.split(" ", 1)
-      crypted_log = " ".join((hash_ip(ip, args.salt), rest))
+  regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)( )(?P<OTHER>.*)')
+  cryptor = CryptoFilter(regex, ['IP'], args.salt)
 
-      if(log_file != None):
-        log_file.write(crypted_log)
-        log_file.flush()
-
-      if(p != None):
-        p.stdin.write(crypted_log)
-        p.stdin.flush()
-
-      log = stdin.readline()
-
+  log = stdin.readline()
+  while(log):
+    crypted_log = cryptor.Cryptify(log)
     if(log_file != None):
-      log_file.close()
+      log_file.write(crypted_log)
+      log_file.flush()
 
     if(p != None):
-      p.stdin.close()
-      p.wait()
-  except Exception, e:
-    syslog(LOG_CRIT, str(e))
+      p.stdin.write(crypted_log)
+      p.stdin.flush()
+
+    log = stdin.readline()
+
+  if(log_file != None):
+    log_file.close()
+
+  if(p != None):
+    p.stdin.close()
+    p.wait()
+
 
