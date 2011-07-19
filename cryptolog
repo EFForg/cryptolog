@@ -4,8 +4,8 @@ from sys import stdin
 from os import urandom
 from time import localtime
 from syslog import syslog, LOG_CRIT
-from base64 import b64encode as encode
-from hmac import HMAC as hash
+from base64 import b64encode
+from hmac import HMAC
 from argparse import ArgumentParser
 from subprocess import Popen, PIPE
 
@@ -14,15 +14,17 @@ salt_day = None
 salt_size = 16
 
 def salt():
+    global salt_data, salt_day, salt_size
+
     t = localtime()
     now = (t.tm_year, t.tm_yday)
     if salt_day != now:
-        salt_data = urandom(16)
+        salt_data = urandom(salt_size)
         salt_day = now
     return salt_data
 
 def hash_ip(ip):
-    return encode(hash(salt(), ip).digest())[:6]
+    return b64encode(HMAC(salt(), ip).digest())[:6]
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='A program to encrypt the IP addresses in web server logs, to be used within an Apache CustomLog line. It assumes that the IP address is the first space-separated field in the log line. Input comes in the form of log lines from stdin.')
