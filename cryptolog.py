@@ -1,54 +1,38 @@
 #!/usr/bin/env python
 
-from sys import stdin, stdout, stderr, argv as arguments
-from os import urandom, stat
-from time import localtime, time
+from sys import stdin
+from os import urandom
+from time import localtime
 from syslog import syslog, LOG_CRIT
-from base64 import b64encode as encode
-from hmac import HMAC as hash
+from base64 import b64encode
+from hmac import HMAC
 from argparse import ArgumentParser
 from subprocess import Popen, PIPE
 import re
 
+salt_data = None
+salt_day = None
 salt_size = 16
-one_day = 60 * 60 * 24
+
 entities_to_hashed_sizes = {
   'IP': 6,
   'UA': 22,
   'TIMESTAMP': 22,
   'TARGET_URL': 6,
-  }
+}
 
-def salt(salt_filename):
-  try:
-    cur_time = localtime()
-    cur_day = (cur_time.tm_year, cur_time.tm_yday)
-    salt_time = localtime(stat(salt_filename).st_mtime)
-    salt_day = (salt_time.tm_year, salt_time.tm_yday)
-    if cur_day != salt_day:
-      return new_salt()
-    return file(salt_filename, "rb").read(16)
-  except Exception, e:
-    try:
-      return new_salt(salt_filename)
-    except Exception, ee:
-      syslog(LOG_CRIT, str(ee))
-      return urandom(salt_size)
+def salt():
+  global salt_data, salt_day, salt_size
 
-def new_salt(salt_filename):
-  try:
-    r = urandom(salt_size)
-    f = file(salt_filename, "wb")
-    f.write(r)
-    f.flush()
-    f.close()
-    return r
-  except Exception, e:
-    syslog(LOG_CRIT, str(e))
+  t = localtime()
+  now = (t.tm_year, t.tm_yday)
+  if salt_day != now:
+    salt_data = urandom(salt_size)
+    salt_day = now
+  return salt_data
 
-def hash_entity(ip, salt_filename, hashed_size):
-  return encode(hash(salt(salt_filename), ip).digest())[:hashed_size]
-
+def hash_entity(entity, hashed_size):
+    return b64encode(HMAC(salt(), entity).digest())[:hashed_size]
 
 class LogParseError(Exception):
   pass
@@ -61,21 +45,18 @@ class UninitializedCryptoFilter(Exception):
 class CryptoFilter(object):
   """Class to control cryptographic logging."""
   
-  def __init__(self, regex=None, field_list=None, salt_filename=None):
+  def __init__(self, regex=None, field_list=None):
     """
     Args:
       regex: re.compile(r'(?P<A>)(?P<B>)) object, with
         named groups
       field_list: what to encrypt that matches named groups
         above, e.g. ["IP", "UA"]
-      salt_filename: where the salt is stored that we're using
     """
     if regex:
       self.SetRegex(regex)
     if field_list:
       self.SetFields(field_list)
-    if salt_filename:
-      self.SetSaltfile(salt_filename)
 
   def SetRegex(self, regex):
     self._regex = regex
@@ -83,16 +64,12 @@ class CryptoFilter(object):
   def SetFields(self, field_list):
     self._field_list = field_list
   
-  def SetSaltfile(self, salt_filename):
-    self._salt_filename = salt_filename
-
   def IsInitialized(self):
-    return self._regex and self._field_list and self._salt_filename
+    return self._regex and self._field_list
   
   def Reset(self):
     self._regex = None
     self._field_list = None
-    self._salt_filename = None
 
   def EncryptSingleLogEntry(self, log_entry):
     """From self.regex, picks out relevant fields from 
@@ -132,15 +109,11 @@ class CryptoFilter(object):
 
   def EncryptField(self, field, hashed_size):
     """Encrypt relevant field (e.g. IP) using salted hash."""
-    return hash_entity(field, self._salt_filename, 6)
+    return hash_entity(field, 6)
 
 
 if __name__ == "__main__":
   parser = ArgumentParser(description='A program to encrypt the IP addresses in web server logs, to be used within an Apache CustomLog line. It assumes that the IP address is the first space-separated field in the log line. Input comes in the form of log lines from stdin.')
-  parser.add_argument('-s', 
-      dest='salt', 
-      default='/tmp/cryptolog_salt', 
-      help='filename to store the salt in (default: /tmp/cryptolog_salt)')
   parser.add_argument('-w',
       dest='write', 
       help='filename to write logs to')
@@ -164,7 +137,7 @@ if __name__ == "__main__":
   entities = args.entities.split(',')
 
   regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)( )(?P<OTHER>.*)')
-  cryptor = CryptoFilter(regex, entities, args.salt)
+  cryptor = CryptoFilter(regex, entities)
 
   log = stdin.readline()
   while(log):
