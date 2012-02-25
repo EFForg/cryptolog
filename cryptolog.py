@@ -45,7 +45,7 @@ class UninitializedCryptoFilter(Exception):
 class CryptoFilter(object):
   """Class to control cryptographic logging."""
   
-  def __init__(self, regex=None, field_list=None):
+  def __init__(self, regex=None, field_list=None, delete_list=None):
     """
     Args:
       regex: re.compile(r'(?P<A>)(?P<B>)) object, with
@@ -56,13 +56,14 @@ class CryptoFilter(object):
     if regex:
       self.SetRegex(regex)
     if field_list:
-      self.SetFields(field_list)
+      self.SetFields(field_list, delete_list)
 
   def SetRegex(self, regex):
     self._regex = regex
 
-  def SetFields(self, field_list):
+  def SetFields(self, field_list, delete_list):
     self._field_list = field_list
+    self._delete_list = delete_list
   
   def IsInitialized(self):
     return self._regex and self._field_list
@@ -87,6 +88,7 @@ class CryptoFilter(object):
     if not results:
       raise LogParseError("Log format does not match regex.")
     split_log = list(results.groups())
+
     # TODO(dtauerbach): this is inefficient but regex
     # doesn't seem quite powerful enough to avoid it
     # by being able to bulk replace named groups.
@@ -105,6 +107,9 @@ class CryptoFilter(object):
           # could legitimately be empty
         continue
       split_log[split_log.index(res)] = self.EncryptField(res, 6)
+    for field in self._delete_list:
+      res = results.group(field)
+      split_log[split_log.index(res)] = ''
     return '%s\n' % (''.join(split_log))
 
   def EncryptField(self, field, hashed_size):
@@ -124,6 +129,10 @@ if __name__ == "__main__":
       dest='entities',
       default='IP',
       help='comma-separated list of entities to filter')
+  parser.add_argument('-s',
+      action='store_true',
+      dest='strip_uas_and_refs',
+      default=False)
   args = parser.parse_args()
 
   log_file = None
@@ -135,9 +144,16 @@ if __name__ == "__main__":
     p = Popen(args.command, stdin=PIPE, shell=True)
 
   entities = args.entities.split(',')
-
   regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)( )(?P<OTHER>.*)')
-  cryptor = CryptoFilter(regex, entities)
+  apache_regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)(?P<SAVE> - - \[.*\] ".*" \d* \d* )(?P<OTHER>.*)')
+  delete_list = []
+
+  # hack for pound logs
+  if args.strip_uas_and_refs:
+    regex = apache_regex
+    delete_list = ['OTHER']
+
+  cryptor = CryptoFilter(regex, entities, delete_list)
 
   log = stdin.readline()
   while(log):
