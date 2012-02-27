@@ -109,8 +109,8 @@ class CryptoFilter(object):
       split_log[split_log.index(res)] = self.EncryptField(res, 6)
     for field in self._delete_list:
       res = results.group(field)
-      split_log[split_log.index(res)] = ''
-    return '%s\n' % (''.join(split_log))
+      split_log[split_log.index(res)] = '-'
+    return '%s\n' % (' '.join(split_log))
 
   def EncryptField(self, field, hashed_size):
     """Encrypt relevant field (e.g. IP) using salted hash."""
@@ -145,7 +145,8 @@ if __name__ == "__main__":
 
   entities = args.entities.split(',')
   regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)( )(?P<OTHER>.*)')
-  apache_regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)(?P<SAVE> - - \[.*\] ".*" \d* \d* )(?P<OTHER>.*)')
+  # todo:dta improve this regex for common log format
+  apache_regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?) (?P<SAVE1>-) (?P<SAVE2>-) (?P<DATETIME>\[.*\]) (?P<REQUEST>".*") (?P<SAVE3>\d*|\-) (?P<SAVE4>\d*|\-) (?P<OTHER>.*)')
   delete_list = []
 
   # hack for pound logs
