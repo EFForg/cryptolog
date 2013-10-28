@@ -32,8 +32,9 @@ def salt():
     salt_day = now
   return salt_data
 
-def hash_entity(entity, hashed_size):
-    return b64encode(HMAC(salt(), entity).digest())[:hashed_size]
+def hash_entity(entity, hashed_size, salt=None):
+    salt = salt or salt()
+    return b64encode(HMAC(salt, entity).digest())[:hashed_size]
 
 class LogParseError(Exception):
   pass
@@ -54,6 +55,7 @@ class CryptoFilter(object):
       field_list: what to encrypt that matches named groups
         above, e.g. ["IP", "UA"]
     """
+    self._salt = None
     if regex:
       self.SetRegex(regex)
     if field_list:
@@ -114,9 +116,12 @@ class CryptoFilter(object):
     split_log = filter(lambda x: type(x) != NoneType, split_log)
     return '%s\n' % (' '.join(split_log))
 
+  def SetSaltfile(self, salt_file):
+    self._salt = open(salt_file, 'r').read()
+
   def EncryptField(self, field, hashed_size):
     """Encrypt relevant field (e.g. IP) using salted hash."""
-    return hash_entity(field, 6)
+    return hash_entity(field, 6, self._salt)
 
 
 if __name__ == "__main__":
