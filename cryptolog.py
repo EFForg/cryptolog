@@ -3,6 +3,7 @@
 from sys import stdin
 from os import urandom
 from time import localtime
+from types import NoneType
 from syslog import syslog, LOG_CRIT
 from base64 import b64encode
 from hmac import HMAC
@@ -110,6 +111,7 @@ class CryptoFilter(object):
     for field in self._delete_list:
       res = results.group(field)
       split_log[split_log.index(res)] = '-'
+    split_log = filter(lambda x: type(x) != NoneType, split_log)
     return '%s\n' % (' '.join(split_log))
 
   def EncryptField(self, field, hashed_size):
