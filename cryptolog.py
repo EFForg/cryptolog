@@ -32,9 +32,9 @@ def salt():
     salt_day = now
   return salt_data
 
-def hash_entity(entity, hashed_size, salt=None):
-    salt = salt or salt()
-    return b64encode(HMAC(salt, entity).digest())[:hashed_size]
+def hash_entity(entity, hashed_size, salt_param=None):
+    salt_var = salt_param or salt()
+    return b64encode(HMAC(salt_var, entity).digest())[:hashed_size]
 
 class LogParseError(Exception):
   pass
