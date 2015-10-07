@@ -21,3 +21,11 @@ Here are some example CustomLog lines for your Apache config files:
     CustomLog "| /usr/bin/cryptolog -s /tmp/salt_file -w /root/cryptolog-access.log" combined
 
 Notice that if you're using the `-c` option, you need to escape spaces in the command you're running with three backslashes.
+
+## Setup
+
+### Docker
+
+Just run:
+
+    docker run --rm -it -p 8080:80 hainish/cryptolog
