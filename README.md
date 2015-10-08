@@ -22,6 +22,11 @@ Here are some example CustomLog lines for your Apache config files:
 
 Notice that if you're using the `-c` option, you need to escape spaces in the command you're running with three backslashes.
 
+## Requirements
+
+ - Python 2.7
+ - PyCrypto ~2.6.1
+
 ## Setup
 
 ### Docker
