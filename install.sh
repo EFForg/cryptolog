@@ -1,2 +1,2 @@
 #!/bin/sh
-sudo cp cryptolog /usr/bin
+sudo cp cryptolog.py /usr/bin/cryptolog
