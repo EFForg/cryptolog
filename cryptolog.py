@@ -63,6 +63,8 @@ class CryptoFilter(object):
 
   def SetRegex(self, regex):
     self._regex = regex
+    # get a list of named groups from the regex, in order
+    self._named = map(lambda x: x[0], sorted(self._regex.groupindex.items(), key=lambda x: x[1]))
 
   def SetFields(self, field_list, delete_list):
     self._field_list = field_list
@@ -73,6 +75,7 @@ class CryptoFilter(object):
   
   def Reset(self):
     self._regex = None
+    self._named = None
     self._field_list = None
 
   def EncryptSingleLogEntry(self, log_entry):
@@ -90,7 +93,11 @@ class CryptoFilter(object):
     results = self._regex.search(log_entry)
     if not results:
       raise LogParseError("Log format does not match regex.")
-    split_log = list(results.groups())
+    print self._regex.groupindex.items()
+
+    # create a list of matches based on named gropus, preserving order
+    results_dict = results.groupdict()
+    split_log = map(lambda x: results_dict[x], self._named)
 
     # TODO(dtauerbach): this is inefficient but regex
     # doesn't seem quite powerful enough to avoid it
@@ -151,9 +158,11 @@ if __name__ == "__main__":
     p = Popen(args.command, stdin=PIPE, shell=True)
 
   entities = args.entities.split(',')
-  regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?)( )(?P<OTHER>.*)')
+  ipv6_exp = '([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'
+  ipv4_exp = '\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?'
+  regex = re.compile(r'(?P<IP>'+ipv4_exp+'|'+ipv6_exp+')( )(?P<OTHER>.*)')
   # todo:dta improve this regex for common log format
-  apache_regex = re.compile(r'(?P<IP>\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?) (?P<SAVE1>-) (?P<SAVE2>-) (?P<DATETIME>\[.*\]) (?P<REQUEST>".*") (?P<SAVE3>\d*|\-) (?P<SAVE4>\d*|\-) (?P<OTHER>.*)')
+  apache_regex = re.compile(r'(?P<IP>'+ipv4_exp+'|'+ipv6_exp+') (?P<SAVE1>-) (?P<SAVE2>-) (?P<DATETIME>\[.*\]) (?P<REQUEST>".*") (?P<SAVE3>\d*|\-) (?P<SAVE4>\d*|\-) (?P<OTHER>.*)')
   delete_list = []
 
   # hack for pound logs
