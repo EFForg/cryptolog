@@ -133,6 +133,9 @@ class CryptoFilter(object):
 
 if __name__ == "__main__":
   parser = ArgumentParser(description='A program to encrypt the IP addresses in web server logs, to be used within an Apache CustomLog line. It assumes that the IP address is the first space-separated field in the log line. Input comes in the form of log lines from stdin.')
+  parser.add_argument('-r',
+      dest='regex',
+      help='file providing regex for log format')
   parser.add_argument('-w',
       dest='write', 
       help='filename to write logs to')
@@ -160,7 +163,13 @@ if __name__ == "__main__":
   entities = args.entities.split(',')
   ipv6_exp = '([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'
   ipv4_exp = '\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?'
-  regex = re.compile(r'(?P<IP>'+ipv4_exp+'|'+ipv6_exp+')( )(?P<OTHER>.*)')
+  if args.regex:
+    with open(args.regex, 'r') as regex_file:
+      expression = regex_file.read().replace('*IPV6*', ipv6_exp).replace('*IPV4*', ipv4_exp)
+      regex = re.compile(expression)
+  else:
+    regex = re.compile(r'(?P<IP>'+ipv4_exp+'|'+ipv6_exp+')( )(?P<OTHER>.*)')
+
   # todo:dta improve this regex for common log format
   apache_regex = re.compile(r'(?P<IP>'+ipv4_exp+'|'+ipv6_exp+') (?P<SAVE1>-) (?P<SAVE2>-) (?P<DATETIME>\[.*\]) (?P<REQUEST>".*") (?P<SAVE3>\d*|\-) (?P<SAVE4>\d*|\-) (?P<OTHER>.*)')
   delete_list = []

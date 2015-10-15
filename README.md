@@ -22,6 +22,20 @@ Here are some example CustomLog lines for your Apache config files:
 
 Notice that if you're using the `-c` option, you need to escape spaces in the command you're running with three backslashes.
 
+## Custom Regex File
+
+You can use the `-r` option to specify a file containing some regex describing the log entry format. The tokens `*IPV6*` and `*IPV4*` can be used as a subsitute for the entire regex of those respective protocols. The group `IP` will be anonymized, so for instance if the file contains the following:
+
+    (?P<IP>*IPV6*)(, )(?P<OTHER>.*)
+
+Then the entry
+
+    ::ffff:8.8.8.8, 10.10.10.10 - - [14/Oct/2015:17:32:51 -0700] "GET /some/url HTTP/1.1" 200 13160
+
+will be anonymized as
+
+    d68qCQ 10.10.10.10 - - [14/Oct/2015:17:32:51 -0700] "GET /some/url HTTP/1.1" 200 13160
+
 ## Requirements
 
  - Python 2.7
