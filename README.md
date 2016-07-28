@@ -8,7 +8,7 @@ Cryptolog makes logs that look like this:
 
     67.169.69.72 - - [12/May/2011:17:58:07 -0700] "GET / HTTP/1.1" 200 430
 
-Looks like this instead:
+Look like this instead:
 
     UkezVh - - [12/May/2011:17:58:07 -0700] "GET / HTTP/1.1" 200 430
 
